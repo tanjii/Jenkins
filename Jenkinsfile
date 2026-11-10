@@ -31,7 +31,7 @@ pipeline {
             steps {
                 script {
                     echo "building the docker image..."
-                    withCredentials([usernamePassword(credentialsId: 'dockerHub-credentials', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]){
+                    withCredentials([usernamePassword(credentialsId: 'dockerHub-credentials', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                         sh "docker build -t tanjii/demo-app:${IMAGE_NAME} ."
                         sh 'echo $PASSWORD | docker login -u $USERNAME --password-stdin'
                         sh "docker push tanjii/demo-app:${IMAGE_NAME}"
@@ -46,24 +46,23 @@ pipeline {
                 }
             }
         }
-        stage('commit version update'){
+        stage('commit version update') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'GitHub', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]){
-                        sh 'git config --global user.email "jenkins@example.com"'
-                        sh 'git config --global user.name "jenkins"'
+                    withCredentials([usernamePassword(credentialsId: 'GitHub', passwordVariable: 'GIT_TOKEN', usernameVariable: 'GIT_USER')]) {
+                        sh '''
+                            git config user.email "jenkins@example.com"
+                            git config user.name "jenkins"
 
-                        sh 'git status'
-                        sh 'git branch'
-                        sh 'git config --list'
+                            git add .
+                            git commit -m "ci: version bump" || echo "Nothing to commit"
 
-                        sh "git remote set-url origin https://${USERNAME}:${PASSWORD}@github.com/tanjii/Jenkins.git"
-                        sh 'git add .'
-                        sh 'git commit -m "ci: version bump"'
-                        sh 'git push origin HEAD:jenkins-jobs'
+                            git -c credential.helper='!f() { echo "username=${GIT_USER}"; echo "password=${GIT_TOKEN}"; }; f' \
+                                push https://github.com/tanjii/Jenkins.git HEAD:jenkins-jobs
+                        '''
                     }
                 }
             }
-         }
         }
     }
+}
